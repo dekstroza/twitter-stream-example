@@ -1,0 +1,142 @@
+<html>
+<head>
+
+    <title>REAL TIME Node.js, Redis and Socket.IO</title>
+
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
+    <style>
+
+        text {
+            font: 10px sans-serif;
+        }
+
+    </style>
+
+
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script type="text/javascript" src="http://10.211.55.12:3000/socket.io/socket.io.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+
+</head>
+
+<body>
+
+<script type="text/javascript">
+
+
+    var socket = io.connect('http://10.211.55.12:3000/');
+
+    socket.on('connect', function (data) {
+        setStatus('connected');
+        socket.emit('subscribe', {channel: 'hashtags'});
+    });
+
+    socket.on('reconnecting', function (data) {
+        setStatus('reconnecting');
+    });
+
+    socket.on('message', function (mydata) {
+        //console.log('received a message: ', mydata);
+        addMessage(mydata);
+    });
+
+    var diameter = 960,
+            format = d3.format(",d"),
+            color = d3.scale.category20c();
+
+    function createSVG() {
+        return d3.select('#graph').append('svg')
+                .attr('width', diameter)
+                .attr('height', diameter)
+                .attr('class', "bubble");
+    }
+    var first = 0;
+    var svg = null;
+    var bubble = d3.layout.pack()
+            .size([diameter, diameter])
+            .value(function (d) {
+                return d.size;
+            }) // new data is loaded to bubble layout
+            .padding(3);
+
+
+    function addMessage(mydata) {
+
+        if (first == 0) {
+            svg = createSVG();
+            first = 1;
+        }
+
+
+
+        // generate data with calculated layout values
+        var nodes = bubble.nodes(processData(mydata))
+                .filter(function(d) { return !d.children; }); // filter out the outer bubble
+
+        // assign new data to existing DOM
+        var vis = svg.selectAll('circle')
+                .data(nodes, function(d) { return d.name; });
+
+        // enter data -> remove, so non-exist selections for upcoming data won't stay -> enter new data -> ...
+
+        // To chain transitions,
+        // create the transition on the updating elements before the entering elements
+        // because enter.append merges entering elements into the update selection
+
+        var duration = 200;
+        var delay = 0;
+
+        // update - this is created before enter.append. it only applies to updating nodes.
+        vis.transition()
+                .duration(duration)
+                .delay(function(d, i) {delay = i * 7; return delay;})
+                .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; })
+                .attr('r', function(d) { return d.r; })
+                .style('opacity', 1); // force to 1, so they don't get stuck below 1 at enter()
+
+        // enter - only applies to incoming elements (once emptying data)
+        var cc= vis.enter().append('circle');
+        cc.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; })
+                .attr('r', function(d) { return d.r; })
+                .attr('class', function(d) { return d.className; })
+                .style('opacity', 0)
+                .transition()
+                .duration(duration * 1.2)
+                .style('opacity', 1)
+                .style("fill", function(d) { return color(d.name); });
+
+        cc.append("title")
+                .text(function(d) { return d.name+":"+ d.size});
+        // exit
+        vis.exit()
+                .transition()
+                .duration(duration + delay)
+                .style('opacity', 0)
+                .remove();
+
+
+    }
+
+    function processData(mydata) {
+        var obj = JSON.parse(mydata);
+        var newDataSet = [];
+        for (var i = 0; i < obj.trending.length; i++) {
+            newDataSet.push({name: obj.trending[i].hashtag, className: obj.trending[i].hashtag, size: obj.trending[i].count});
+        }
+        return {children: newDataSet};
+    }
+
+    function setStatus(msg) {
+        console.log('Connection Status : ' + msg);
+    }
+
+    d3.select(self.frameElement).style("height", diameter + "px");
+
+</script>
+
+<section id="graph"></section>
+
+</body>
+</html>
+
