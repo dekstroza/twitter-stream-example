@@ -64,10 +64,9 @@ public class TwitterSumarizeHashTags extends BaseBasicBolt {
     @Override
     public void prepare(Map stormConf, TopologyContext context) {
         TimerTask timerTask = new TimerTask() {
-
+            private Jedis jedis = new Jedis(redisIp, Integer.parseInt(redisPort));
             @Override
             public void run() {
-                final Jedis jedis = new Jedis(redisIp, Integer.parseInt(redisPort));
                 Map<String, Integer> oldMap = new HashMap<String, Integer>(hashtags);
                 final JSONObject jsonObj = new JSONObject();
                 final JSONArray jsonArray = new JSONArray();

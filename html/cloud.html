@@ -1,0 +1,110 @@
+<html>
+<head>
+
+    <title>REAL TIME Node.js, Redis and Socket.IO</title>
+
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
+
+
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script type="text/javascript" src="http://10.211.55.12:3000/socket.io/socket.io.js"></script>
+    <!--<script src="http://d3js.org/d3.v3.min.js"></script>-->
+    <script src="d3.js"></script>
+    <script src="d3.layout.cloud.js"></script>
+
+</head>
+
+<body>
+
+<script>
+
+    var socket = io.connect('http://10.211.55.12:3000/');
+    var first = true;
+    var svg;
+    socket.on('connect', function (data) {
+        setStatus('connected');
+        socket.emit('subscribe', {channel: 'hashtags'});
+    });
+
+    socket.on('reconnecting', function (data) {
+        setStatus('reconnecting');
+    });
+
+    socket.on('message', function (mydata) {
+        console.log('received a message: ', mydata);
+        var fill = d3.scale.category20();
+        var obj = JSON.parse(mydata);
+        var newDataSet = [];
+        for (var i = 0; i < obj.trending.length; i++) {
+            newDataSet.push({word: obj.trending[i].hashtag, weight: 20+ obj.trending[i].count * 4});
+        }
+        // d3.select("body").remove("svg");
+        d3.layout.cloud().size([900, 900])
+                .words(newDataSet.map(function (d) {
+                    return {text: d.word, size: d.weight};
+                }))
+                .padding(5)
+                .rotate(function () {
+                    return ~~(Math.random() * 2) * 90;
+                })
+                .font("Impact")
+                .fontSize(function (d) {
+                    return d.size;
+                })
+                .on("end", draw)
+                .start();
+
+        function draw(words) {
+            if (first) {
+                svg = d3.select("body").append("svg");
+                first = false;
+            }
+            else
+            {
+                d3.selectAll("svg").remove();
+                svg = d3.select("body").append("svg");
+
+            }
+
+            svg.attr("width", 900)
+                    .attr("height", 900)
+                    .append("g")
+                    .attr("transform", "translate(450,450)")
+                    .selectAll("text")
+                    .data(words)
+                    .enter().append("text")
+                    .style("font-size", function (d) {
+                        return d.size + "px";
+                    })
+                    .style("font-family", "Impact")
+                    .style("fill", function (d, i) {
+                        return fill(i);
+                    })
+                    .attr("text-anchor", "middle")
+                    .attr("class", function (d) {
+                        return d.text;
+                    })
+                    .attr("transform", function (d) {
+
+                        return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+                    })
+                    .text(function (d) {
+                        return d.text;
+                    });
+        }
+
+
+    });
+
+
+    function setStatus(msg) {
+        console.log('Connection Status : ' + msg);
+    }
+
+
+</script>
+
+</body>
+</html>
+

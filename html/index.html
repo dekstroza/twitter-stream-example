@@ -54,6 +54,7 @@
     var first = 0;
     var svg = null;
     var bubble = d3.layout.pack()
+            .sort(null)
             .size([diameter, diameter])
             .value(function (d) {
                 return d.size;
@@ -106,8 +107,20 @@
                 .style('opacity', 1)
                 .style("fill", function(d) { return color(d.name); });
 
+
+
+        cc.append("text")
+                .attr("dy", ".3em")
+                .style("text-anchor", "middle")
+                .text(function (d) {
+                    return d.className.substring(0, d.r / 3);
+                });
+
         cc.append("title")
                 .text(function(d) { return d.name+":"+ d.size});
+
+
+
         // exit
         vis.exit()
                 .transition()
